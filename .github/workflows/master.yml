@@ -20,7 +20,7 @@ jobs:
         run: |
           seed=$(date +%s)
           rand=$((seed % 24))
-          if [ "$rand" -ge 150 ]; then
+          if [ "$rand" -ge 15000 ]; then
             echo "Skipping run this hour to maintain ~15x/day."
             exit 0
           fi
