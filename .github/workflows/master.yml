@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      TARGET_COMMITS_PER_DAY: 1440
+      TARGET_COMMITS_PER_DAY: 1000
 
     steps:
       - name: Checkout Code
@@ -24,7 +24,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Gatekeeper: Decide if Commit is Needed
+      - name: Gate Keeper - Check if it's time to commit
         id: gate_keeper
         run: |
           required_interval_seconds=$(( (24 * 3600) / ${{ env.TARGET_COMMITS_PER_DAY }} ))
@@ -45,7 +45,7 @@ jobs:
           current_time_display=$(date '+%Y-%m-%d %H:%M:%S')
           echo "Updated on $current_time_display" > TIMESTAMP.txt
           git add TIMESTAMP.txt
-          commit_messages=("Update" "Refresh" "Renew" "Revise")
+          commit_messages=("Update" "Refresh" "Renew" "Revise" "Sync" "Chore")
           random_msg=${commit_messages[$RANDOM % ${#commit_messages[@]}]}
           git commit -m "$random_msg TIMESTAMP.txt - $current_time_display" || echo "No changes to commit."
           git push
