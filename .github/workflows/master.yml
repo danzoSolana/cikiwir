@@ -1,6 +1,8 @@
 name: Automated Commit
 
 on:
+  push:
+    branches: [master]
   schedule:
     - cron: '* * * * *'
   workflow_dispatch:
@@ -10,42 +12,40 @@ permissions:
 
 jobs:
   update_commit:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
+    
     env:
-      TARGET_COMMITS_PER_DAY: 1500
+      TARGET_COMMITS_PER_DAY: 1440
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          persist-credentials: true
           fetch-depth: 0
 
-      - name: Random Delay
+      - name: Gatekeeper: Decide if Commit is Needed
+        id: gate_keeper
         run: |
-          interval=$((86400 / ${{ env.TARGET_COMMITS_PER_DAY }}))
-          delay_seconds=$((RANDOM % (interval / 2) + (interval / 4)))
-          sleep "${delay_seconds}s"
+          required_interval_seconds=$(( (24 * 3600) / ${{ env.TARGET_COMMITS_PER_DAY }} ))
+          last_commit_time=$(git log --author="github-actions[bot]" --grep="\[skip ci\]" -1 --format=%ct || echo "0")
+          current_time=$(date +%s)
+          elapsed_time=$(( current_time - last_commit_time ))
+          if (( elapsed_time >= required_interval_seconds )); then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Update Timestamp
+      - name: Create and Push Commit
+        if: steps.gate_keeper.outputs.should_run == 'true'
         run: |
-          current_time=$(date '+%Y-%m-%d %H:%M:%S')
-          echo "Updated on $current_time" > TIMESTAMP.txt
-
-      - name: Setup Git
-        run: |
-          git config user.email "${{ github.repository_owner }}@users.noreply.github.com"
-          git config user.name "${{ github.repository_owner }}"
-
-      - name: Commit
-        run: |
+          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          current_time_display=$(date '+%Y-%m-%d %H:%M:%S')
+          echo "Updated on $current_time_display" > TIMESTAMP.txt
+          git add TIMESTAMP.txt
           commit_messages=("Update" "Refresh" "Renew" "Revise")
           random_msg=${commit_messages[$RANDOM % ${#commit_messages[@]}]}
-          git add TIMESTAMP.txt
-          git commit -m "$random_msg - $(date '+%Y-%m-%d %H:%M:%S')"
-
-      - name: Push
-        uses: ad-m/github-push-action@v0.6.0
-        with:
-          directory: '.'
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          git commit -m "$random_msg TIMESTAMP.txt - $current_time_display" || echo "No changes to commit."
+          git push
