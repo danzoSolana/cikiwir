@@ -11,42 +11,40 @@ permissions:
 jobs:
   update_commit:
     runs-on: ubuntu-latest
+    env:
+      TARGET_COMMITS_PER_DAY: 1500
 
     steps:
-      - name: Setup Debug Information
-        run: echo "::debug::Triggered by ref = ${{ github.ref }}"
-
       - name: Checkout Code
         uses: actions/checkout@v3
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Random Delay Before Execution
+      - name: Random Delay
         run: |
-          delay_seconds=$((RANDOM % 26 + 5))
-          echo "Delaying for $delay_seconds seconds..."
+          interval=$((86400 / ${{ env.TARGET_COMMITS_PER_DAY }}))
+          delay_seconds=$((RANDOM % (interval / 2) + (interval / 4)))
           sleep "${delay_seconds}s"
 
-      - name: Update Timestamp File
+      - name: Update Timestamp
         run: |
           current_time=$(date '+%Y-%m-%d %H:%M:%S')
           echo "Updated on $current_time" > TIMESTAMP.txt
 
-      - name: Setup Git Configuration
+      - name: Setup Git
         run: |
-          git config user.email "decadca4@gmail.com"
-          git config user.name "danzoSolana"
+          git config user.email "${{ github.repository_owner }}@users.noreply.github.com"
+          git config user.name "${{ github.repository_owner }}"
 
-      - name: Prepare Commit
+      - name: Commit
         run: |
-          commit_messages=("Update: ⏰" "Refresh: 🔄" "Renew: 🌟" "Revise: 📝" "Amend: 🛠" "Adjust: 🔧" "Change: 📈" "Modify: 🖊" "Transform: 🌀" "Revamp: 🌈")
+          commit_messages=("Update" "Refresh" "Renew" "Revise")
           random_msg=${commit_messages[$RANDOM % ${#commit_messages[@]}]}
-          current_time=$(date '+%Y-%m-%d %H:%M:%S')
           git add TIMESTAMP.txt
-          git commit -m "$random_msg - $current_time" || echo "No changes to commit."
+          git commit -m "$random_msg - $(date '+%Y-%m-%d %H:%M:%S')"
 
-      - name: GitHub Push
+      - name: Push
         uses: ad-m/github-push-action@v0.6.0
         with:
           directory: '.'
