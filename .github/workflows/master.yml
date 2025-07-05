@@ -2,7 +2,7 @@ name: Automated Commit
 
 on:
   schedule:
-    - cron: '0 * * * *' # Setiap jam
+    - cron: '* * * * *'
   workflow_dispatch:
 
 permissions:
@@ -16,26 +16,17 @@ jobs:
       - name: Setup Debug Information
         run: echo "::debug::Triggered by ref = ${{ github.ref }}"
 
-      - name: Random Execution Gate (15x per 24h approx)
-        run: |
-          seed=$(date +%s)
-          rand=$((seed % 24))
-          if [ "$rand" -ge 15000 ]; then
-            echo "Skipping run this hour to maintain ~15x/day."
-            exit 0
-          fi
-
       - name: Checkout Code
         uses: actions/checkout@v3
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Random Delay Before Execution (10-50 mins)
+      - name: Random Delay Before Execution
         run: |
-          delay_minutes=$((RANDOM % 41 + 10))
-          echo "Delaying for $delay_minutes minutes..."
-          sleep "${delay_minutes}m"
+          delay_seconds=$((RANDOM % 26 + 5))
+          echo "Delaying for $delay_seconds seconds..."
+          sleep "${delay_seconds}s"
 
       - name: Update Timestamp File
         run: |
