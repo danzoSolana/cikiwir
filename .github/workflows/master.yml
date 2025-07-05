@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
   schedule:
-    - cron: '* * * * *'
+    - cron: '*/1 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -12,40 +12,43 @@ permissions:
 
 jobs:
   update_commit:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
-    
+
     env:
-      TARGET_COMMITS_PER_DAY: 1000
+      TARGET_COMMITS_PER_DAY: 720
+      BOT_NAME: github-actions[bot]
+      BOT_EMAIL: actions@github.com
 
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Gate Keeper - Check if it's time to commit
+      - name: Gate Keeper
         id: gate_keeper
+        shell: bash
         run: |
-          required_interval_seconds=$(( (24 * 3600) / ${{ env.TARGET_COMMITS_PER_DAY }} ))
-          last_commit_time=$(git log --author="github-actions[bot]" --grep="\[skip ci\]" -1 --format=%ct || echo "0")
-          current_time=$(date +%s)
-          elapsed_time=$(( current_time - last_commit_time ))
-          if (( elapsed_time >= required_interval_seconds )); then
-            echo "should_run=true" >> $GITHUB_OUTPUT
+          interval=$(( 86400 / TARGET_COMMITS_PER_DAY ))
+          last=$(git log -1 --author="$BOT_NAME" --format=%ct 2>/dev/null || echo 0)
+          now=$(date +%s)
+          diff=$(( now - last ))
+          if [ "$diff" -ge "$interval" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
-            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create and Push Commit
+      - name: Commit and Push
         if: steps.gate_keeper.outputs.should_run == 'true'
+        shell: bash
         run: |
-          git config user.email "actions@github.com"
-          git config user.name "github-actions[bot]"
-          current_time_display=$(date '+%Y-%m-%d %H:%M:%S')
-          echo "Updated on $current_time_display" > TIMESTAMP.txt
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
+          ts=$(date '+%Y-%m-%d %H:%M:%S')
+          echo "Updated on $ts" > TIMESTAMP.txt
           git add TIMESTAMP.txt
-          commit_messages=("Update" "Refresh" "Renew" "Revise" "Sync" "Chore")
-          random_msg=${commit_messages[$RANDOM % ${#commit_messages[@]}]}
-          git commit -m "$random_msg TIMESTAMP.txt - $current_time_display" || echo "No changes to commit."
+          msgs=("Update ⏰" "Refresh 🔄" "Renew 🌟" "Revise 📝" "Sync 💾" "Chore 🔧")
+          msg=${msgs[$RANDOM % ${#msgs[@]}]}
+          git commit -m "$msg - $ts [skip ci]" || exit 0
           git push
