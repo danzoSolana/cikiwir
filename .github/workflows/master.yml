@@ -23,6 +23,13 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
 
+      # --- BAGIAN YANG DIPERBAIKI ---
+      - name: Setup Git Configuration
+        run: |
+          git config user.email "${{ github.repository_owner }}@users.noreply.github.com"
+          git config user.name "${{ github.repository_owner }}"
+      # --- AKHIR BAGIAN YANG DIPERBAIKI ---
+
       - name: Update Timestamp File and Set Output
         id: timestamp_update
         run: |
